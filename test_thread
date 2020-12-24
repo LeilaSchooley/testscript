@@ -1,0 +1,57 @@
+import asyncio
+import concurrent.futures
+from time import sleep
+import PySimpleGUI as sg
+
+proxy_path = "testproxy.txt"
+
+
+def run(proxy, thread, window):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    future = asyncio.ensure_future(main(proxy, thread, window))  # tasks to do
+    loop.run_until_complete(future)  # loop until done
+
+
+async def main(proxy, window):
+    # LOCATION 1
+    # this is our "long running function call"
+    # sleep for a while as a simulation of a long-running computation
+    sleep(5)
+    # at the end of the work, before exiting, send a message back to the GUI indicating end
+    window.write_event_value('-THREAD-', '*** The thread says.... "I am finished" ***')
+    # at this point, the thread exits
+    return
+
+
+def the_gui():
+    layout = [[sg.Text('Thread Number:'), sg.InputText(k='Threads')],
+
+              [sg.OK(), sg.Cancel()]]
+
+    window = sg.Window('Downlaod Bot', layout, finalize=True)
+
+    while True:
+        event, values = window.read()
+        if event in (sg.WIN_CLOSED, 'Exit'):
+            break
+        if event in (sg.WIN_CLOSED, 'OK'):
+            thread_number = int(values['Threads'])
+            print('Thread Starting!')
+
+            def threading_only(thread):
+
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=thread_number) as executor:
+                    proxys = [i.split('\n') for i in open(proxy_path)]
+                    executor.map(run, proxys, thread, window)
+
+        if __name__ == "__main__":
+            threading_only(range(thread_number))
+
+        window.close()
+
+
+if __name__ == '__main__':
+    the_gui()
+    print('Exiting Program')
