@@ -19,7 +19,7 @@ async def main(proxy, window):
     # sleep for a while as a simulation of a long-running computation
     sleep(5)
     # at the end of the work, before exiting, send a message back to the GUI indicating end
-    window.write_event_value('-THREAD-', '*** The thread says.... "I am finished" ***')
+    window.write_event_value('*** The thread says.... "I am finished" ***')
     # at this point, the thread exits
     return
 
@@ -41,17 +41,13 @@ def the_gui():
 
             def threading_only(thread):
 
-
                 with concurrent.futures.ThreadPoolExecutor(max_workers=thread_number) as executor:
                     proxys = [i.split('\n') for i in open(proxy_path)]
-                    executor.map(run, proxys, thread, window)
+                    executor.map(run, (proxys, thread, window))
 
-        if __name__ == "__main__":
             threading_only(range(thread_number))
 
-        window.close()
 
 
 if __name__ == '__main__':
     the_gui()
-    print('Exiting Program')
