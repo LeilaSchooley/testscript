@@ -3,13 +3,28 @@ import concurrent.futures
 from time import sleep
 import PySimpleGUI as sg
 
+import logging
+import queue
+
 proxy_path = "testproxy.txt"
+
+#Using logging module of name 'mainlogs'
+log = logging.getLogger('mainlogs')
+
+#The queue acting as log buffer
+class QueueHandler(logging.Handler):
+    def __init__(self, log_queue):
+        super().__init__()
+        self.log_queue = log_queue
+
+    def emit(self, record):
+        self.log_queue.put(record)
 
 
 def run(proxy, thread, window):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    future = asyncio.ensure_future(main(proxy, thread, window))  # tasks to do
+    future = asyncio.ensure_future(main(proxy, window))  # tasks to do
     loop.run_until_complete(future)  # loop until done
 
 
@@ -17,9 +32,8 @@ async def main(proxy, window):
     # LOCATION 1
     # this is our "long running function call"
     # sleep for a while as a simulation of a long-running computation
-    sleep(5)
     # at the end of the work, before exiting, send a message back to the GUI indicating end
-    window.write_event_value('*** The thread says.... "I am finished" ***')
+    log.info('*** The thread says.... "I am finished" ***')
     # at this point, the thread exits
     return
 
@@ -27,9 +41,18 @@ async def main(proxy, window):
 def the_gui():
     layout = [[sg.Text('Thread Number:'), sg.InputText(k='Threads')],
 
-              [sg.OK(), sg.Cancel()]]
+              [sg.OK(), sg.Cancel()],
+              [sg.Text('Logs: ')],
+              [sg.Multiline(key='logs')]]
 
-    window = sg.Window('Downlaod Bot', layout, finalize=True)
+    window = sg.Window('Download Bot', layout, finalize=True)
+
+    #Logger setup with queue having INFO level severity
+
+    logging.basicConfig(level=logging.INFO)
+    log_queue = queue.Queue()
+    queue_handler = QueueHandler(log_queue)
+    log.addHandler(queue_handler)
 
     while True:
         event, values = window.read()
@@ -37,7 +60,8 @@ def the_gui():
             break
         if event in (sg.WIN_CLOSED, 'OK'):
             thread_number = int(values['Threads'])
-            print('Thread Starting!')
+            #print('Thread Starting!')
+            log.info('Thread Starting!')
 
             def threading_only(thread):
 
@@ -46,6 +70,15 @@ def the_gui():
                     executor.map(run, (proxys, thread, window))
 
             threading_only(range(thread_number))
+
+            # Poll queue to display any logs.
+            try:
+                record = log_queue.get(block=False)
+            except queue.Empty:
+                pass
+            else:
+                msg = queue_handler.format(record)
+                window.FindElement('logs').Update(msg+'\n', append=True)
 
 
 
